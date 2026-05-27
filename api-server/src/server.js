@@ -20,6 +20,18 @@ const { pool } = require('./db');
   } catch (e) { /* table may already exist */ }
 })();
 
+(async () => {
+  try {
+    await pool.query(`CREATE TABLE IF NOT EXISTS vk_links (
+      peer_id TEXT PRIMARY KEY,
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      notify_enabled BOOLEAN DEFAULT true,
+      created_at TIMESTAMPTZ DEFAULT now()
+    )`);
+    console.log('✅ vk_links table ready');
+  } catch (e) { /* table may already exist */ }
+})();
+
 const app = express();
 
 // CORS — разрешаем Vercel фронт (без credentials, чтобы fetch() работал)
