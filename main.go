@@ -124,12 +124,81 @@ func startHTTPServer() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"status":"ok"}`))
 	})
-	addr := ":3001"
+	mux.HandleFunc("/game/", gameHandler)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/game/", http.StatusFound)
+			return
+		}
+		http.NotFound(w, r)
+	})
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "3001"
+	}
+	addr := ":" + port
 	log.Println("📡 Go bot HTTP server on", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal("HTTP server:", err)
 	}
 }
+
+func gameHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(gameHTML)
+}
+
+var gameHTML = []byte(`<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>SUP-Забег</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a1628;overflow:hidden;touch-action:none;font-family:Arial,sans-serif}
+canvas{display:block;margin:0 auto;background:linear-gradient(180deg,#0a1628 0%,#1a3a5c 40%,#2a6a9e 70%,#3a8abe 100%)}
+#ui{position:absolute;top:10px;left:0;right:0;display:flex;justify-content:space-between;padding:0 20px;pointer-events:none;z-index:10}
+#score{color:#ffd700;font-size:24px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,.5)}
+#best{color:#fff;font-size:18px;opacity:.7}
+#gameOver{position:absolute;top:0;left:0;right:0;bottom:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.7);z-index:20}
+#gameOver h2{color:#ffd700;font-size:32px;margin-bottom:10px}
+#gameOver p{color:#fff;font-size:18px;margin-bottom:20px}
+#gameOver button{padding:12px 40px;font-size:20px;background:#ffd700;color:#0a1628;border:none;border-radius:25px;cursor:pointer;font-weight:bold}
+#startScreen{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(0,0,0,.6);z-index:15}
+#startScreen h1{color:#ffd700;font-size:36px;margin-bottom:5px}
+#startScreen p{color:#aaa;font-size:14px;margin-bottom:25px}
+#startScreen button{padding:12px 40px;font-size:20px;background:#ffd700;color:#0a1628;border:none;border-radius:25px;cursor:pointer;font-weight:bold}
+.info{color:#888;font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="ui"><div id="score">⭐ 0</div><div id="best">🏆 0</div></div>
+<div id="startScreen"><h1>🏄 SUP-Забег</h1><p>Управляй тач/мышь • уклоняйся от препятствий</p><button id="startBtn">Старт!</button><div class="info">⬅️ ➡️ или тач влево/вправо</div></div>
+<div id="gameOver"><h2>💥 Конец!</h2><p id="finalScore">Очки: 0</p><button id="restartBtn">Ещё раз</button></div>
+<canvas id="game"></canvas>
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+let W=400,H=700,score=0,bestScore=parseInt(localStorage.getItem('supBest')||'0'),running=false;
+function resize(){const m=Math.min(window.innerWidth,400);W=m;H=Math.min(window.innerHeight,700);canvas.width=W;canvas.height=H;dpr=W/400}
+let dpr=1;resize();window.addEventListener('resize',resize);
+const player={x:200,y:620,w:40,h:50,speed:0,score:0};
+let obstacles=[],stars=[],frame=0,targetX=200;
+document.getElementById('best').innerHTML='🏆 '+bestScore;
+function resetGame(){player.x=200;player.y=620;player.speed=0;player.score=0;score=0;obstacles=[];stars=[];frame=0;targetX=200;document.getElementById('score').innerHTML='⭐ 0'}
+function spawnObstacle(){const types=['rock','log','buoy'];const t=types[Math.floor(Math.random()*types.length)];const w=t==='rock'?40+Math.random()*30:30+Math.random()*30;const h=t==='log'?20+Math.random()*15:30+Math.random()*20;obstacles.push({x:Math.random()*(W-w),y:-h,w,h,type:t,speed:2+Math.random()*2})}
+function spawnStar(){stars.push({x:10+Math.random()*(W-20),y:-10,w:20,h:20,type:'star',speed:2+Math.random()*1.5})}
+function update(){frame++;if(frame%40===0)spawnObstacle();if(frame%60===0)spawnStar();player.speed+=0.05;if(player.speed>5)player.speed=5;const dx=targetX-player.x;player.x+=dx*0.15;if(player.x<0)player.x=0;if(player.x>W-player.w)player.x=W-player.w;for(let i=obstacles.length-1;i>=0;i--){const o=obstacles[i];o.y+=o.speed;if(o.y>H+50){obstacles.splice(i,1);continue}const px=player.x,py=player.y,pw=player.w,ph=player.h;if(px+pw>o.x&&px<o.x+o.w&&py+ph>o.y&&py<o.y+o.h){endGame();return}}for(let i=stars.length-1;i>=0;i--){const s=stars[i];s.y+=s.speed;if(s.y>H+50){stars.splice(i,1);continue}const px=player.x,py=player.y,pw=player.w,ph=player.h;if(px+pw>s.x&&px<s.x+s.w&&py+ph>s.y&&py<s.y+s.h){stars.splice(i,1);score++;player.score=score;document.getElementById('score').innerHTML='⭐ '+score;if(score>bestScore){bestScore=score;localStorage.setItem('supBest',bestScore.toString());document.getElementById('best').innerHTML='🏆 '+bestScore}}}}
+function draw(){ctx.clearRect(0,0,W,H);const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#0a1628');grad.addColorStop(0.3,'#1a3a5c');grad.addColorStop(0.6,'#2a6a9e');grad.addColorStop(1,'#3a8abe');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);for(let i=0;i<8;i++){const y=(frame*0.3+i*60)%(H+40)-40;ctx.fillStyle='rgba(255,255,255,0.03)';ctx.fillRect(0,y,W,2)}for(const o of obstacles){ctx.save();if(o.type==='rock'){ctx.fillStyle='#5a4a3a';ctx.beginPath();const cx=o.x+o.w/2,cy=o.y+o.h/2;ctx.ellipse(cx,cy,o.w/2,o.h/2,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#3a2a1a';ctx.beginPath();ctx.ellipse(cx-3,cy-3,o.w*0.3,o.h*0.3,0,0,Math.PI*2);ctx.fill()}else if(o.type==='log'){ctx.fillStyle='#6b4226';const r=o.h/2;ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,r,r);ctx.fill();ctx.fillStyle='#4a2a16';for(let i=0;i<3;i++){const lx=o.x+5+i*(o.w-10)/2;ctx.beginPath();ctx.arc(lx,o.y+o.h/2,2,0,Math.PI*2);ctx.fill()}}else{ctx.fillStyle='#e04040';ctx.beginPath();ctx.arc(o.x+o.w/2,o.y+o.h/2,o.w/2,0,Math.PI*2);ctx.fill();ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(o.x+o.w/2-3,o.y+o.h/2-3,3,0,Math.PI*2);ctx.fill()}ctx.restore()}for(const s of stars){ctx.save();ctx.fillStyle='#ffd700';const cx=s.x+s.w/2,cy=s.y+s.h/2;const r=s.w/2;ctx.beginPath();for(let i=0;i<5;i++){const angle=-Math.PI/2+i*Math.PI*2/5;const px=cx+Math.cos(angle)*r;const py=cy+Math.sin(angle)*r;i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);const angle2=angle+Math.PI/5;const px2=cx+Math.cos(angle2)*r*0.4;const py2=cy+Math.sin(angle2)*r*0.4;ctx.lineTo(px2,py2)}ctx.closePath();ctx.fill();ctx.fillStyle='rgba(255,215,0,0.3)';ctx.beginPath();ctx.arc(cx,cy,r+5,0,Math.PI*2);ctx.fill();ctx.restore()}ctx.save();ctx.fillStyle='#e07040';ctx.beginPath();ctx.ellipse(player.x+player.w/2,player.y+player.h-5,player.w/2,15,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d06030';ctx.fillRect(player.x+5,player.y+player.h-8,player.w-10,6);ctx.fillStyle='#4a8';(player.frame%10<5)?ctx.fillStyle='#ff8c42':ctx.fillStyle='#3a6';ctx.beginPath();ctx.ellipse(player.x+player.w/2,player.y-5,player.w*0.35,player.h*0.2,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(player.x+player.w/2-5,player.y-8,2,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(player.x+player.w/2+5,player.y-8,2,0,Math.PI*2);ctx.fill();ctx.restore();if(running)requestAnimationFrame(gameLoop)}
+function gameLoop(){update();draw()}
+function endGame(){running=false;document.getElementById('finalScore').innerHTML='Очки: '+score;document.getElementById('gameOver').style.display='flex'}
+canvas.addEventListener('mousemove',e=>{const rect=canvas.getBoundingClientRect();targetX=(e.clientX-rect.left)*dpr-player.w/2});canvas.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];const rect=canvas.getBoundingClientRect();targetX=(t.clientX-rect.left)*dpr-player.w/2});canvas.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];const rect=canvas.getBoundingClientRect();targetX=(t.clientX-rect.left)*dpr-player.w/2});
+document.getElementById('startBtn').addEventListener('click',()=>{document.getElementById('startScreen').style.display='none';resetGame();running=true;gameLoop()});
+document.getElementById('restartBtn').addEventListener('click',()=>{document.getElementById('gameOver').style.display='none';resetGame();running=true;gameLoop()});
+</script>
+</body>
+</html>`)
+
 
 func notifyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {

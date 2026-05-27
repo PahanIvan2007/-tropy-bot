@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: tropy-kayrana-bot
+    runtime: go
+    region: frankfurt
+    plan: free
+    buildCommand: go build -o bot .
+    startCommand: ./bot
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GAME_URL
+        value: https://tropy-kayrana-bot.onrender.com/game/
