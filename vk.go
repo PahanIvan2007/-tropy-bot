@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -105,7 +106,7 @@ func handleVKMessage(msg object.MessagesMessage) {
 	case text == "/start" || text == "Начать" || text == "start" || clean == "Назад":
 		vkSend(peerID, "🌊 Тропы Каярана\nДобро пожаловать! Выбирай команду в меню ниже 👇", vkKeyboard())
 	case text == "/help" || text == "help" || text == "Помощь" || clean == "Помощь":
-		vkSend(peerID, "🗺 Помощь\n\n🔹 Основное:\n/start — Главное меню\n/help — Эта справка\n\n🔹 Активности:\n/boats — Статус лодок\n/weather — Погода на точках\n/events — Мероприятия\n/routes — Маршруты\n\n🔹 Развлечения:\n/play — SUP-Забег (игра)", vkBackKeyboard())
+		vkSend(peerID, "🗺 Помощь\n\n🔹 Основное:\n/start — Главное меню\n/help — Эта справка\n\n🔹 Активности:\n/boats — Статус лодок\n/weather — Погода на точках\n/events — Мероприятия\n/routes — Маршруты\n\n🔹 Аккаунт:\n/register Имя Фамилия email пароль — Регистрация\n/link email — Привязать существующий аккаунт\n\n🔹 Развлечения:\n/play — SUP-Забег (игра)", vkBackKeyboard())
 	case text == "/play" || text == "play" || text == "Игра" || strings.Contains(text, "SUP-Забег") || clean == "SUP-Забег":
 		vkSend(peerID, "🎮 SUP-Забег\n\nУправляй SUP-бордом, уклоняйся от камней и брёвен, собирай звёзды ⭐\n\nОткрой игру: https://tropy-kayrana-bot.onrender.com/game/")
 	case text == "/boats" || text == "boats" || clean == "Лодки":
@@ -119,6 +120,8 @@ func handleVKMessage(msg object.MessagesMessage) {
 	default:
 		if strings.HasPrefix(text, "/link") {
 			vkLinkHandler(peerID, strings.TrimPrefix(text, "/link"))
+		} else if strings.HasPrefix(text, "/register") {
+			vkRegisterHandler(peerID, strings.TrimPrefix(text, "/register"))
 		} else {
 			vkSend(peerID, "❌ Неизвестная команда. Напиши /help для списка команд.")
 		}
@@ -266,8 +269,77 @@ func vkLinkHandler(peerID int, args string) {
 	vkSend(peerID, "✅ Аккаунт привязан! Теперь тебе доступны профиль и брони.")
 }
 
+const apiBase = "https://tropy-kayrana-api.onrender.com"
+
+func vkRegisterHandler(peerID int, args string) {
+	args = strings.TrimSpace(args)
+	parts := strings.SplitN(args, " ", 4)
+	if len(parts) < 4 {
+		vkSend(peerID, "❌ Формат: /register Имя Фамилия email пароль\n\nПример: /register Иван Иванов ivan@example.com password123")
+		return
+	}
+	firstName := strings.TrimSpace(parts[0])
+	lastName := strings.TrimSpace(parts[1])
+	email := strings.TrimSpace(parts[2])
+	password := strings.TrimSpace(parts[3])
+
+	if len(password) < 6 {
+		vkSend(peerID, "❌ Пароль должен быть минимум 6 символов.")
+		return
+	}
+
+	body := map[string]string{
+		"first_name": firstName,
+		"last_name":  lastName,
+		"email":      email,
+		"password":   password,
+	}
+	resp, err := httpPostJSON(apiBase+"/api/auth/register", body)
+	if err != nil {
+		log.Println("Register API error:", err)
+		vkSend(peerID, "❌ Ошибка сервера. Попробуй позже.")
+		return
+	}
+
+	var result struct {
+		User  map[string]interface{} `json:"user"`
+		Token string                 `json:"token"`
+	}
+	if err := json.Unmarshal(resp, &result); err != nil || result.User == nil {
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		json.Unmarshal(resp, &errResp)
+		msg := errResp.Error
+		if msg == "" {
+			msg = "Регистрация не удалась. Возможно, email уже занят."
+		}
+		vkSend(peerID, "❌ "+msg)
+		return
+	}
+
+	uid := int(result.User["id"].(float64))
+	db.Exec("INSERT INTO vk_links (peer_id, user_id) VALUES ($1,$2) ON CONFLICT (peer_id) DO UPDATE SET user_id=$2",
+		strconv.Itoa(peerID), uid)
+
+	vkSend(peerID, "✅ Регистрация прошла успешно, "+firstName+"!\n\nТвой аккаунт привязан к ВК. Используй /help для списка команд.")
+}
+
 func httpGet(url string) ([]byte, error) {
 	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
+}
+
+func httpPostJSON(url string, data interface{}) ([]byte, error) {
+	body, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
