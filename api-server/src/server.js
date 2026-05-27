@@ -22,7 +22,7 @@ const { pool } = require('./db');
 
 const app = express();
 
-// CORS — разрешаем Vercel фронт
+// CORS — разрешаем Vercel фронт (без credentials, чтобы fetch() работал)
 const allowedOrigins = [
   'http://localhost:4200',
   'https://kayran-ui.vercel.app',
@@ -35,8 +35,7 @@ app.use(cors({
     } else {
       cb(new Error('Not allowed by CORS'));
     }
-  },
-  credentials: true
+  }
 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -70,6 +69,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/weather', require('./routes/weather'));
 app.use('/api/audit', require('./routes/audit'));
+app.use('/api/demo', require('./routes/demo'));
 app.use('/game', express.static('public/game'));
 app.use('/uploads', express.static('uploads'));
 
