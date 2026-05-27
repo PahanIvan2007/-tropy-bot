@@ -8,10 +8,11 @@ router.post('/boats', async (req, res) => {
   const { point_id, serial_number, name, boat_type, capacity } = req.body;
   if (!name || !boat_type) return res.status(400).json({ error: 'name и boat_type обязательны' });
   try {
+    const sn = serial_number || `DEMO-${Date.now().toString(36).toUpperCase()}`;
     const { rows } = await pool.query(
       `INSERT INTO boats (point_id, serial_number, name, boat_type, capacity)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [point_id || 'b0000000-0000-0000-0000-000000000001', serial_number || null, name, boat_type, capacity || 1]
+      [point_id || 'b0000000-0000-0000-0000-000000000001', sn, name, boat_type, capacity || 1]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -41,10 +42,11 @@ router.post('/routes', async (req, res) => {
   const { title, difficulty, distance_km, point_id, is_inclusive } = req.body;
   if (!title) return res.status(400).json({ error: 'title обязателен' });
   try {
+    const dist = parseFloat(distance_km) || 1.0;
     const { rows } = await pool.query(
       `INSERT INTO routes (title, difficulty, distance_km, point_id, is_inclusive)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [title, difficulty || 'easy', distance_km || '1.0',
+      [title, difficulty || 'easy', dist,
        point_id || 'b0000000-0000-0000-0000-000000000001', is_inclusive || false]
     );
     res.status(201).json(rows[0]);
