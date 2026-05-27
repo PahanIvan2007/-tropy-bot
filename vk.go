@@ -94,20 +94,27 @@ func handleVKMessage(msg object.MessagesMessage) {
 	peerID := msg.PeerID
 	text := strings.TrimSpace(msg.Text)
 
+	// Убираем эмодзи-префиксы для сравнения
+	clean := text
+	for _, p := range []string{"🚤 ", "🌤 ", "📅 ", "🗺 ", "🎮 ", "❓ ", "🔙 "} {
+		clean = strings.TrimPrefix(clean, p)
+	}
+	clean = strings.TrimSpace(clean)
+
 	switch {
-	case text == "/start" || text == "Начать" || text == "start":
+	case text == "/start" || text == "Начать" || text == "start" || clean == "Назад":
 		vkSend(peerID, "🌊 Тропы Каярана\nДобро пожаловать! Выбирай команду в меню ниже 👇", vkKeyboard())
-	case text == "/help" || text == "help" || text == "Помощь":
+	case text == "/help" || text == "help" || text == "Помощь" || clean == "Помощь":
 		vkSend(peerID, "🗺 Помощь\n\n🔹 Основное:\n/start — Главное меню\n/help — Эта справка\n\n🔹 Активности:\n/boats — Статус лодок\n/weather — Погода на точках\n/events — Мероприятия\n/routes — Маршруты\n\n🔹 Развлечения:\n/play — SUP-Забег (игра)", vkBackKeyboard())
-	case text == "/play" || text == "play" || text == "Игра":
-		vkSend(peerID, "🎮 *SUP-Забег*\n\nУправляй SUP-бордом, уклоняйся от камней и брёвен, собирай звёзды ⭐\n\nОткрой игру в браузере: https://tropy-kayrana-bot.onrender.com/game/")
-	case text == "/boats" || text == "boats" || text == "Лодки":
+	case text == "/play" || text == "play" || text == "Игра" || strings.Contains(text, "SUP-Забег") || clean == "SUP-Забег":
+		vkSend(peerID, "🎮 SUP-Забег\n\nУправляй SUP-бордом, уклоняйся от камней и брёвен, собирай звёзды ⭐\n\nОткрой игру: https://tropy-kayrana-bot.onrender.com/game/")
+	case text == "/boats" || text == "boats" || clean == "Лодки":
 		vkBoatHandler(peerID)
-	case text == "/weather" || text == "weather" || text == "Погода":
+	case text == "/weather" || text == "weather" || clean == "Погода":
 		vkWeatherHandler(peerID)
-	case text == "/events" || text == "events" || text == "События":
+	case text == "/events" || text == "events" || clean == "События":
 		vkEventsHandler(peerID)
-	case text == "/routes" || text == "routes" || text == "Маршруты":
+	case text == "/routes" || text == "routes" || clean == "Маршруты":
 		vkRoutesHandler(peerID)
 	default:
 		if strings.HasPrefix(text, "/link") {
