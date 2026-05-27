@@ -71,19 +71,19 @@ func vkSend(peerID int, text string, keyboard ...string) {
 }
 
 func vkKeyboard() string {
-	return `{"inline":true,"buttons":[
-		[{"action":{"type":"text","label":"🚤 Лодки","payload":"/boats"},"color":"primary"},
-		 {"action":{"type":"text","label":"🌤 Погода","payload":"/weather"},"color":"primary"}],
-		[{"action":{"type":"text","label":"📅 События","payload":"/events"},"color":"primary"},
-		 {"action":{"type":"text","label":"🗺 Маршруты","payload":"/routes"},"color":"primary"}],
-		[{"action":{"type":"text","label":"🎮 SUP-Забег","payload":"/play"},"color":"primary"},
-		 {"action":{"type":"text","label":"❓ Помощь","payload":"/help"},"color":"primary"}]
+	return `{"one_time":false,"buttons":[
+		[{"action":{"type":"text","label":"🚤 Лодки","payload":"\"boats\""},"color":"primary"},
+		 {"action":{"type":"text","label":"🌤 Погода","payload":"\"weather\""},"color":"primary"}],
+		[{"action":{"type":"text","label":"📅 События","payload":"\"events\""},"color":"primary"},
+		 {"action":{"type":"text","label":"🗺 Маршруты","payload":"\"routes\""},"color":"primary"}],
+		[{"action":{"type":"text","label":"🎮 SUP-Забег","payload":"\"play\""},"color":"positive"},
+		 {"action":{"type":"text","label":"❓ Помощь","payload":"\"help\""},"color":"secondary"}]
 	]}`
 }
 
 func vkBackKeyboard() string {
-	return `{"inline":true,"buttons":[
-		[{"action":{"type":"text","label":"🔙 Назад","payload":"/start"},"color":"secondary"}]
+	return `{"one_time":false,"buttons":[
+		[{"action":{"type":"text","label":"🔙 Назад","payload":"\"start\""},"color":"secondary"}]
 	]}`
 }
 
