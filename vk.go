@@ -58,13 +58,16 @@ func startVKBot() {
 	}
 }
 
-func vkSend(peerID int, text string) {
-	vk.MessagesSend(api.Params{
-		"peer_id":        peerID,
-		"message":        text,
-		"random_id":      0,
-		"dont_parse_links": 1,
-	})
+func vkSend(peerID int, text string, keyboard ...string) {
+	p := api.Params{
+		"peer_id":   peerID,
+		"message":   text,
+		"random_id": 0,
+	}
+	if len(keyboard) > 0 && keyboard[0] != "" {
+		p["keyboard"] = keyboard[0]
+	}
+	vk.MessagesSend(p)
 }
 
 func vkKeyboard() string {
@@ -93,9 +96,9 @@ func handleVKMessage(msg object.MessagesMessage) {
 
 	switch {
 	case text == "/start" || text == "Начать" || text == "start":
-		vkSend(peerID, "🌊 *Тропы Каярана*\nДобро пожаловать! Я — бот платформы водных активностей. Выбирай команду в меню ниже 👇")
+		vkSend(peerID, "🌊 Тропы Каярана\nДобро пожаловать! Выбирай команду в меню ниже 👇", vkKeyboard())
 	case text == "/help" || text == "help" || text == "Помощь":
-		vkSend(peerID, "🗺 *Помощь*\n\n🔹 Основное:\n/start — Главное меню\n/help — Эта справка\n\n🔹 Активности:\n/boats — Статус лодок\n/weather — Погода на точках\n/events — Мероприятия\n/routes — Маршруты\n\n🔹 Развлечения:\n/play — SUP-Забег (игра)")
+		vkSend(peerID, "🗺 Помощь\n\n🔹 Основное:\n/start — Главное меню\n/help — Эта справка\n\n🔹 Активности:\n/boats — Статус лодок\n/weather — Погода на точках\n/events — Мероприятия\n/routes — Маршруты\n\n🔹 Развлечения:\n/play — SUP-Забег (игра)", vkBackKeyboard())
 	case text == "/play" || text == "play" || text == "Игра":
 		vkSend(peerID, "🎮 *SUP-Забег*\n\nУправляй SUP-бордом, уклоняйся от камней и брёвен, собирай звёзды ⭐\n\nОткрой игру в браузере: https://tropy-kayrana-bot.onrender.com/game/")
 	case text == "/boats" || text == "boats" || text == "Лодки":
@@ -133,7 +136,7 @@ func vkBoatHandler(peerID int) {
 			repair++
 		}
 	}
-	res := fmt.Sprintf("🚤 *Флот Троп Каярана*\n\n📊 Статистика:\n┣ Всего: %d\n┣ ✅ Свободно: %d\n┣ 🔴 Занято: %d\n┗ 🔧 Ремонт: %d\n\n📋 Список:\n", total, avail, rented, repair)
+	res := fmt.Sprintf("🚤 Флот Троп Каярана\n\n📊 Статистика:\n┣ Всего: %d\n┣ ✅ Свободно: %d\n┣ 🔴 Занято: %d\n┗ 🔧 Ремонт: %d\n\n📋 Список:\n", total, avail, rented, repair)
 	for _, r := range rows {
 		s := fmt.Sprint(r["status"])
 		n := fmt.Sprint(r["name"])
@@ -186,7 +189,7 @@ func vkWeatherHandler(peerID int) {
 		}
 		results[i] = fmt.Sprintf("%s %s: %.0f°C, 💨 %.0f м/с", emoji, name, d.Current.Temp, d.Current.Wind)
 	}
-	vkSend(peerID, "🌤 *Погода на точках*\n\n"+strings.Join(results, "\n"))
+		vkSend(peerID, "🌤 Погода на точках\n\n"+strings.Join(results, "\n"))
 }
 
 func vkEventsHandler(peerID int) {
@@ -196,7 +199,7 @@ func vkEventsHandler(peerID int) {
 		return
 	}
 	var b strings.Builder
-	b.WriteString("📅 *Ближайшие мероприятия*\n\n")
+	b.WriteString("📅 Ближайшие мероприятия\n\n")
 	for i, r := range rows {
 		title := fmt.Sprint(r["title"])
 		t := r["start_time"].(time.Time)
