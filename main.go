@@ -115,6 +115,7 @@ func main() {
 	log.Printf("🤖 Go bot @%s\n", bot.Self.UserName)
 
 	go startHTTPServer()
+	go startVKBot()
 	startPolling()
 }
 
